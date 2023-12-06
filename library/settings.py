@@ -28,16 +28,17 @@ SECRET_KEY = 'django-insecure-d@v=frd#1u&g2vl%$akk6exy-5a99=+$8^un*n*k=7b&3j*tk+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*', "localhost", "127.0.0.1"]
 
 
 # Application definition
 
 INSTALLED_APPS = [
-
+    'corsheaders',
     'channels',
     'drf_yasg',
     'rest_framework',
+    
 
     'django.contrib.admin',
     'django.contrib.auth',
@@ -46,10 +47,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'bms',
+    'bms.apps.BmsConfig',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -57,7 +59,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    #'bms.middlewares.APIKeyMiddleware',
+    # 'bms.middlewares.APIKeyMiddleware',
 ]
 
 ROOT_URLCONF = 'library.urls'
@@ -136,3 +138,16 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# CORS_ALLOWED_ORIGINS = [
+#     'http://localhost:3000', "http://127.0.0.1:3000"
+# ]
+CORS_ALLOW_METHODS = ['*']
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS =True
+
+REST_FRAMEWORK = {
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
+    
+}

@@ -1,10 +1,13 @@
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from .models import Book, Category
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 # Create your views here.
+
 
 
 class BookApiView(APIView):
@@ -37,26 +40,31 @@ class AddBookApiView(APIView):
                             the cover image of the book
                          """
     )
-    def post(self, request,):
+    def post(self, request,*args, **kwargs):
         rd = request.POST  # request dictionary
         try:
             request_dict = {"name": rd.get('name'), "author": rd.get('author'), "desc": rd.get('desc'),
-                            "category": get_object_or_404(Category, name= rd.get('category')),
+                            "category": Category.objects.get(name=rd.get('category')),#get_object_or_404(Category, name= rd.get('category')),
                             "payload": rd.get("payload"),
                             "image": request.FILES.get('cover_image'),
                             }
+            print(request_dict)
         except:
+            print('an exception occured')
             request_dict = {"name": rd.get('name'), "author": rd.get('author'), "desc": rd.get('desc'),
                             "payload": rd.get("payload"),
                             "image": request.FILES.get('cover_image'),
                             }
+            print('exception skipped')
         try:
-            get_object_or_404(Category, name=rd.get('category'))
+            Category.objects.get(name=rd.get('category'))#get_object_or_404(Category, name=rd.get('category'))
         except:
-            Category.objects.create(name=rd.get('category'), )
+            # Category.objects.create(name=rd.get('category'), )
+            print(rd.get('name'))
+            nc = Category(name=rd.get('category'))
+            nc.save()
         finally:
-
-            request_dict["category"] =  get_object_or_404(Category, name=rd.get('category')),
+            request_dict["category"] = Category.objects.get(name=rd.get('category'))
         try:
             book_obj = Book(*request_dict)
             book_obj.save()
@@ -102,6 +110,80 @@ class SearchBookApiView(APIView):
             responses={200:'OK'},
             operation_summary="Search for a particular book"
     )
-    def get(request,):
-        q = request.GET.get('q')
+    def get(self,request,):
+        q = request.GET.get('q', '')
+        if q:
+            s_query = SearchQuery(q)
+            search_vector = SearchVector('name', 'desc', 'author')
+            results = Book.objects.annotate(
+                search = search_vector,
+                rank = SearchRank(search_vector, s_query)
+            ).filter(
+                search=s_query
+            ).order_by('-rank')
+        else:
+            results=None
+        return Response({'query':q, 'results': results})
+    
+
+class SearchCategoryApiView(APIView):
+    @swagger_auto_schema(
+        responses={200: 'OK'},
+        operation_summary="Search for a particular category"
+    )
+    def get(self, request,):
+        q = request.GET.get('q', '')
+        if q:
+            s_query = SearchQuery(q)
+            search_vector = SearchVector('name',)
+            results = Book.objects.annotate(
+                search=search_vector,
+                rank=SearchRank(search_vector, s_query)
+            ).filter(
+                search=s_query
+            ).order_by('-rank')
+        else:
+            results = None
+        return Response({'query': q, 'results': results})
+
+class GetBookPaginatorView(APIView):
+    @swagger_auto_schema(
+        responses={200: "OK"},
+        operation_summary="Get all the books in the library in pages",
+        operation_description="""
+                            The lazy loader loads the books in pages 10 books at a time
+                         """
+    )
+    def get(self, request,):
+        page = request.GET.get('page')
+        qs = Book.objects.order_by('name')
         
+        limit = 10
+        paginator = Paginator(qs, limit)
+        try:
+            bks = paginator.page(page)
+        except PageNotAnInteger:
+            bks = paginator.page(1)
+        except EmptyPage:
+            bks = paginator.page(paginator.num_pages)
+        
+        s_data = [
+                {
+                    'id': item.id,
+                    'name': item.name,
+                    'author': item.author,
+                    'photo': item.image if item.image else "",
+                    'description': item.desc,
+                    'category': item.category.name,
+                    'date': item.date_added
+                }
+                for item in bks
+            ]
+        data = {
+            'results': s_data,
+            'total_pages': paginator.num_pages,
+            'current_page': page,
+            'has_next': bks.has_next(),
+            'has_previous': bks.has_previous(),
+        }
+        return Response(data)
