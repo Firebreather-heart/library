@@ -1,6 +1,5 @@
 from django.test import TestCase
 from django.urls import reverse
-from matplotlib import category 
 from .models import Book, Category
 # Create your tests here.
 
@@ -42,6 +41,6 @@ class BookTestCase(TestCase):
         res = self.client.get(reverse('get_book', args=[self.book.id]))
         self.assertContains(res, 'test book')
         self.assertContains(res, 'test author')
-        
+
     
         

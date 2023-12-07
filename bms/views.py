@@ -3,9 +3,10 @@ from .models import Book, Category
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import get_object_or_404
+from rest_framework import status,pagination
+from rest_framework.generics import ListAPIView
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from .serializers import BookSerializer
 # Create your views here.
 
 
@@ -21,8 +22,7 @@ class BookApiView(APIView):
     )
     def get(self, request):
         books = Book.objects.all()
-        books = {
-            "books": [str([i.name, i.author, i.desc, i.category]) for i in books]}
+        books = BookSerializer(books).data
         return Response(books, status=status.HTTP_200_OK)
 
 
@@ -146,7 +146,17 @@ class SearchCategoryApiView(APIView):
             results = None
         return Response({'query': q, 'results': results})
 
-class GetBookPaginatorView(APIView):
+
+class Pager(pagination.PageNumberPagination):
+    page_size = 10 
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class GetBookPaginatorView(ListAPIView):
+    serializer_class = BookSerializer
+    queryset = Book.objects.all()
+    pagination_class = Pager
+
     @swagger_auto_schema(
         responses={200: "OK"},
         operation_summary="Get all the books in the library in pages",
@@ -154,36 +164,5 @@ class GetBookPaginatorView(APIView):
                             The lazy loader loads the books in pages 10 books at a time
                          """
     )
-    def get(self, request,):
-        page = request.GET.get('page')
-        qs = Book.objects.order_by('name')
-        
-        limit = 10
-        paginator = Paginator(qs, limit)
-        try:
-            bks = paginator.page(page)
-        except PageNotAnInteger:
-            bks = paginator.page(1)
-        except EmptyPage:
-            bks = paginator.page(paginator.num_pages)
-        
-        s_data = [
-                {
-                    'id': item.id,
-                    'name': item.name,
-                    'author': item.author,
-                    'photo': item.image if item.image else "",
-                    'description': item.desc,
-                    'category': item.category.name,
-                    'date': item.date_added
-                }
-                for item in bks
-            ]
-        data = {
-            'results': s_data,
-            'total_pages': paginator.num_pages,
-            'current_page': page,
-            'has_next': bks.has_next(),
-            'has_previous': bks.has_previous(),
-        }
-        return Response(data)
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)

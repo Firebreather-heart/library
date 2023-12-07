@@ -8,6 +8,9 @@ class Category(models.Model):
     name = models.CharField(db_index=True, max_length=100)
     created = models.DateField(auto_now=True)
     search_vector = SearchVectorField(null=True)
+    
+    class Meta:
+        verbose_name_plural = 'Categories'
 
     def __str__(self) -> str:
         return f"{self.name}"
@@ -26,6 +29,7 @@ class Book(models.Model):
         related_name="book_category"
     )
     author = models.CharField(max_length=100)
+    genre = models.CharField(max_length=100, default='general')
     desc = models.CharField(max_length=1000)
     date_added = models.DateField(auto_now=True)
     payload = models.FileField(upload_to='books/', blank=True)
